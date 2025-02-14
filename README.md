@@ -62,7 +62,7 @@ atari_8bit_font.atlas (link)  atari_8bit_font.atlas.bin  atari_8bit_font.atlas.b
 
 feh build/output.png
 ```
-![Bipartite Graph of files and tools](exp/assets/output.png)
+![Bipartite Graph of files and tools](https://raw.githubusercontent.com/MasonJohnHawver42/AssetForge/refs/heads/master/exp/assets/output.png)
 
 **Note:** the debug graph of the flow of files as inputs and output to tools also includes itself - **meta!**
 
