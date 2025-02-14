@@ -1,0 +1,7 @@
+Created symlink: build/output.log -> /home/mjh/Programming/fun/asset_forge/exp/assets/output.log
+Created symlink: build/atlases/atari_8bit_font.png -> /home/mjh/Programming/fun/asset_forge/exp/assets/atlases/atari_8bit_font.png
+Created symlink: build/atlases/atari_8bit_font.atlas -> /home/mjh/Programming/fun/asset_forge/exp/assets/atlases/atari_8bit_font.atlas
+Created symlink: build/output.svg -> /home/mjh/Programming/fun/asset_forge/exp/assets/output.svg
+Atlas binary written to build/atlases/atari_8bit_font.atlas.bin
+Successfully converted assets/output.svg to assets/output.png
+Created symlink: build/output.png -> /home/mjh/Programming/fun/asset_forge/exp/assets/output.png

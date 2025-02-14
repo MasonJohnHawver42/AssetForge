@@ -16,42 +16,21 @@
 
 ![Icon](https://raw.githubusercontent.com/MasonJohnHawver42/AssetForge/refs/heads/master/icon.png)
 
-**Asset Forge**: CMake for video game assets. With this utility, you will be able to preprocess your asset files, which are human and tool-readable/usable, into binary files that can be directly streamed into C/C++ structs and classes. This process will streamline loading complex assets in small video game projects written in C/C++ or other systems languages.
+**Asset Forge**: CMake for video game assets. With this utility, you will be able to preprocess your asset files, which are human and tool readable or usable, into binary files that can be directly streamed into C/C++ structs and classes. This process will streamline loading complex assets in small video game projects written in C/C++ or other systems languages.
 
 Instead of linking several libraries dedicated to loading different types of files: meshes, animations, sprite sheets, etc., now you can just write a simple Python script that loads any complicated mesh/assimp file, optimizes the mesh, does some pre-calculations for vertex normals and tangent vectors, then packages it into a binary file that can be easily loaded in C/C++ by streaming the data into a struct or class that has a mirror structure to the binary file.
 
+Preprocessing assets into binary files also has the benefit of compression. In the example a human editable plaintext `json` is **3689** bytes, preprocessing it into a `.bin` file compresses it to **1273** bytes, then compressing that with zlib results in a `.bin.z` that is **468** bytes; **A 88% compression!**
 
-First define a Amake.py file:
-```python
-import AssetForge
-from amake import atlas, text, compress
-
-from pathlib import Path
-
-AssetForge.RegisterTool(compress.CompressTool(), 3) 
-AssetForge.RegisterTool(atlas.AtlasTool(), 2)  
-AssetForge.RegisterTool(text.TextTool(), 1)  
-AssetForge.RegisterTool(AssetForge.common.General(), 0)  
-
-AssetForge.Build(input_folder=Path("assets"), output_folder=Path("build"), recursive=True, parallel=True)
-```
-
-Then run:
-```bash
-python Amake.py
-```
-
-Note: `amake` in `from amake import atlas, text, compress` is a folder of scripts that define the specific instructions for preprocessing .txt, .atlas, and .bin files:
-
- - AtlasTool takes in a .atlas file which is just a json which defines the aabb of sprites in an image in a human readable json format, and outputs a .atlas.bin file which is binary that can be directly loaded into a `std::vector` of aabbs and a `std::unordered_map<std::string, unsigned int>` in C++
- - CompressTool takes .bin files (like .atlas.bin) and compresses them into .bin.z files 
- - TextTool just copies all .txt files from  input dir to the output dir
- - General is a base case which links every other file not captured by the other tools into the output dir from the input dir
-
-The result of `python Amake.py`:
+## Example Usage and Result:
 
 ```bash
-ls -R input_folder
+pip install AssetForge
+
+cd exp  
+pip install -r requirements.txt # these are packages needed for the custom tools used in the example (PIL and cariosvg)
+
+ls -R assets
 
 assets/:
 atlases  test.txt
@@ -60,25 +39,84 @@ assets/atlases:
 atari_8bit_font.atlas  atari_8bit_font.png
 
 python Amake.py
+
 [0%  ] building ... 
-[20% ] General "assets/atlases/atari_8bit_font.atlas"
-[40% ] TextTool "assets/test.txt"
-[60% ] General "assets/atlases/atari_8bit_font.png"
-[80% ] AtlasTool "assets/atlases/atari_8bit_font.atlas"
-[100%] CompressTool "build/atlases/atari_8bit_font.atlas.bin"
-```
+[11% ] LinkingTool "assets/output.log"
+[22% ] CopyingTool "assets/test.txt"
+[33% ] LinkingTool "assets/atlases/atari_8bit_font.png"
+[44% ] LinkingTool "assets/atlases/atari_8bit_font.atlas"
+[55% ] LinkingTool "assets/output.svg"
+[66% ] AtlasTool "assets/atlases/atari_8bit_font.atlas"
+[77% ] SVGtoPNGTool "assets/output.svg"
+[88% ] LinkingTool "assets/output.png"
+[100%] CompressionTool "build/atlases/atari_8bit_font.atlas.bin"
 
-```bash
-ls -R output_folder
+ls -R build
 
-build:
-atlases  output.log  test.txt
+build/:
+atlases  output.log (link)  output.png (link)  output.svg (link)  test.txt # Note debug=True writes a output.log output.svg and output.png to assets and they are linked to the build dir
 
 build/atlases:
-atari_8bit_font.atlas (link)  atari_8bit_font.atlas.bin  atari_8bit_font.atlas.bin.z (60% compression) atari_8bit_font.png (link)
+atari_8bit_font.atlas (link)  atari_8bit_font.atlas.bin  atari_8bit_font.atlas.bin.z (88% compression) atari_8bit_font.png (link)
+
+
+feh build/output.png
+```
+![Bipartite Graph of files and tools](exp/assets/output.png)
+
+**Note:** the debug graph of the flow of files as inputs and output to tools also includes itself - **meta!**
+
+## Getting Started
+
+1. **Create an `Amake.py` file:**
+
+```python
+import AssetForge
+
+from pathlib import Path
+
+from amake import atlas, svg
+
+AssetForge.RegisterTool(AssetForge.common.CopyingTool(pattern=r"^.*\.txt$"),  priority=1)  
+AssetForge.RegisterTool(AssetForge.common.CompressionTool(),                  priority=5) 
+AssetForge.RegisterTool(AssetForge.common.LinkingTool(),                      priority=0)  
+AssetForge.RegisterTool(atlas.AtlasTool(),                                    priority=3)  
+AssetForge.RegisterTool(svg.SVGtoPNGTool(),                                   priority=3)  
+
+
+AssetForge.Build(Path("assets"), Path("build"), recursive=True, parallel=True, debug=True)
 ```
 
-check out `exp` for the full example of this.
+2. **Add/write scripts in `amake`:**
+
+Read the documentation for more information on this. But all you need to do to create a tool is implement `AssetTool`.
+
+3. **Run the build:**
+
+```bash
+python Amake.py
+```
+
+## Tools Overview
+
+Example/Custom:
+
+- **AtlasTool**:  
+  Processes a `.atlas` file (a JSON describing sprite bounds in a human-readable format) into a `.atlas.bin` binary file. This binary file can then be loaded directly into C++ containers (e.g., a `std::vector` of AABBs and a `std::unordered_map<std::string, unsigned int>`).
+
+- **SVGtoPNGTool**:  
+  Converts `.svg` files into `.png` files, using CairoSVG for the conversion.
+
+General:
+
+- **CompressionTool**:  
+  Compresses `.bin` files (such as `.atlas.bin`) into `.bin.z` files.
+
+- **CopyingTool**:  
+  Copies files (that match the given pattern) from the input to the output directory, often used when simple duplication is sufficient.
+
+- **LinkingTool**:  
+  Creates symbolic links for files from the input directory to the output directory, avoiding data duplication.
 
 
 

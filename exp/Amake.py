@@ -2,11 +2,13 @@ import AssetForge
 
 from pathlib import Path
 
-from amake import atlas, text, compress
+from amake import atlas, svg
 
-AssetForge.RegisterTool(compress.CompressTool(), 3) 
-AssetForge.RegisterTool(atlas.AtlasTool(), 2)  
-AssetForge.RegisterTool(text.TextTool(), 1)  
-AssetForge.RegisterTool(AssetForge.common.General(), 0)  
+AssetForge.RegisterTool(AssetForge.common.CopyingTool(pattern=r"^.*\.txt$"),  priority=1)  
+AssetForge.RegisterTool(AssetForge.common.CompressionTool(),                  priority=5) 
+AssetForge.RegisterTool(AssetForge.common.LinkingTool(),                      priority=0)  
+AssetForge.RegisterTool(atlas.AtlasTool(),                                    priority=3)  
+AssetForge.RegisterTool(svg.SVGtoPNGTool(),                                   priority=3)  
 
-AssetForge.Build(Path("assets"), Path("build"), recursive=True, parallel=True)
+
+AssetForge.Build(Path("assets"), Path("build"), recursive=True, parallel=True, debug=True)

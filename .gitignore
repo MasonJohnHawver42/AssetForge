@@ -2,3 +2,4 @@ dist
 *.egg-info/
 exp/build/
 __pycache__/
+tmp/

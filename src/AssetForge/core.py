@@ -8,7 +8,7 @@ import sys
 
 import threading
 
-from .util import topological_sort, JobDict, ThreadPool
+from .util import topological_sort, viz_dependency_graph, Graph, JobDict, ThreadPool
 
 class AssetTool:
     def __init__(self):
@@ -128,9 +128,9 @@ def _pick_tools(tools : List[AssetTool], file_path : Path) -> List[AssetTool]:
     return [tool for tool in tools if __call_check_match(tool, file_path)]
 
 def _run_job(job_func: Callable[..., Any], *args, **kwargs) -> None:
-            job_func(*args, **kwargs)
+    return job_func(*args, **kwargs)
 
-def Build(input_folder: Path, output_folder: Path, recursive: bool = False, parallel: bool = False):
+def Build(input_folder: Path, output_folder: Path, recursive: bool = False, parallel: bool = False, debug: bool = False):
     print("[0%  ] building ... ")
 
     assert isinstance(input_folder, Path), "input_folder is not a Path"
@@ -147,11 +147,15 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
     for file in input_folder.rglob("*"):
         if file.is_file():
             root_files.add(file)
+
+    if debug:
+        root_files.add(input_folder / Path("output.svg"))
+        root_files.add(input_folder / Path("output.log"))
     
     delta = root_files
     output_files = set()
 
-    graph: Dict[str, Set[str]] = {}
+    graph: Graph = {}
     jobs: JobDict = {}
 
     for file in root_files:
@@ -214,6 +218,9 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
     bipartite_order = topological_sort(graph)
     order = bipartite_order[1::2]
 
+    if debug:
+        viz_dependency_graph(graph, bipartite_order, input_folder / Path("output"))
+
     forge.todo = sum([len(b) for b in order])
 
     if parallel:
@@ -251,9 +258,11 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
             for node in batch:
                 _run_job(*jobs[node])
 
-    with open(output_folder / Path("output.log"), "w") as log_file:
-        log_file.write(forge.log_buf.getvalue())
-    
+
+    if debug:
+        with open(input_folder / Path("output.log"), "w") as log_file:
+            log_file.write(forge.log_buf.getvalue())
+        
     forge.log_buf.truncate(0)
     forge.log_buf.seek(0)
 

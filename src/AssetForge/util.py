@@ -1,8 +1,11 @@
 from typing import List, Dict, Tuple, Set, Callable, Any, Optional
 from pathlib import Path
 
+from graphviz import Digraph
+
 import threading
 import queue
+import re
 
 def full_suffix(file_path: Path) -> str:
     return "".join(file_path.suffixes)
@@ -23,8 +26,21 @@ def add_suffix(file_path: Path, extra_suffix: str) -> Path:
     """
     return file_path.with_name(file_path.name + extra_suffix)
 
-def topological_sort(graph: Dict[str, Set[str]]) -> List[Set[str]]:
-    dependee_graph: Dict[str, Set[str]] = {}
+Graph = Dict[str, Set[str]]
+
+JobDict = Dict[
+    str,
+    Tuple[
+        Callable[..., Any],
+        Optional[Tuple[Any, ...]],
+        Optional[Dict[str, Any]],
+    ],
+]
+
+Order = List[Set[str]]
+
+def topological_sort(graph: Graph) -> Order:
+    dependee_graph: Graph = {}
     in_degree: Dict[str, int] = {}
 
     for node in graph:
@@ -38,7 +54,7 @@ def topological_sort(graph: Dict[str, Set[str]]) -> List[Set[str]]:
         in_degree[node] = len(graph[node])
     
     queue = [node for node in graph if in_degree[node] == 0]
-    result: List[Set[str]] = []
+    result: Order = []
     nodes_added = set() 
 
     while len(queue) > 0:
@@ -59,14 +75,33 @@ def topological_sort(graph: Dict[str, Set[str]]) -> List[Set[str]]:
 
     return result
 
-JobDict = Dict[
-    str,
-    Tuple[
-        Callable[..., Any],
-        Optional[Tuple[Any, ...]],
-        Optional[Dict[str, Any]],
-    ],
-]
+def viz_dependency_graph(dependencies, topological_order, output_file="graph"):
+    dot = Digraph(format="svg")
+    dot.attr(rankdir="LR")
+
+    dot.attr("graph", compound="true")
+    dot.attr("node", shape="record", fontname="Courier")
+    dot.attr("edge", style="dashed", arrowhead="vee", splines="curved", tailport="e", headport="w")
+
+    # Create a subgraph (cluster) for each topological level to align nodes
+    for level, nodes in enumerate(topological_order):
+        with dot.subgraph(name=f"cluster_{level}") as sub:
+            sub.attr(rank="same", label=(f"Files {int((level - 0) / 2)}" if level != 0 else "Root Files") if level % 2 == 0 else f"Funcs {int((level - 1) / 2)}", fontsize="12", fontname="Courier")
+            sub.attr(align="left")
+            for node in nodes:
+                if re.match(r"^\w+_[a-fA-F0-9]{32}$", node):
+                    sub.node(node, label=node[:-33], style="filled", fillcolor="lightgrey")
+                else:
+                    sub.node(node, style="filled", fillcolor="lightblue")
+
+    # Add edges
+    for node, deps in dependencies.items():
+        for dep in deps:
+            dot.edge(dep, node)
+
+    # Save and render
+    dot.render(output_file, format="svg", cleanup=True)
+    # print(f"Graph saved as {output_file}.svg")
 
 class ThreadPool:
     def __init__(self, num_threads: int):
