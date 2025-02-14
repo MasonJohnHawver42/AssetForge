@@ -1,5 +1,6 @@
 # Asset Forge
 
+<svg width="0" height="0" xmlns="http://www.w3.org/2000/svg">
 <div style="display: flex; align-items: top;">
   <img src="icon.png" alt="[icon image]" title="Icon" width="220px" style="margin-right: 15px; margin-bottom: 15px; aspect-ratio: 1; height: auto;">
   <span>
@@ -11,6 +12,7 @@
     </p>
   </span>
 </div>
+</svg>
 
 <br>
 
