@@ -1,7 +1,7 @@
 # Asset Forge
 
 <div style="display: flex; align-items: top;">
-  <img src="icon.png" alt="credit: Dalle3" title="Icon" width="220px" style="margin-right: 15px; aspect-ratio: 1; height: auto;">
+  <img src="icon.png" alt="[icon image]" title="Icon" width="220px" style="margin-right: 15px; margin-bottom: 15px; aspect-ratio: 1; height: auto;">
   <span>
     <p>
         <strong>Asset Forge</strong>: CMake for video game assets. With this utility, you will be able to preprocess your asset files, which are human and tool-readable/usable, into binary files that can be directly streamed into C/C++ structs and classes. This process will streamline loading complex assets in small video game projects written in C/C++ or other systems languages.
