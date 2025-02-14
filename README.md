@@ -1,7 +1,6 @@
 # Asset Forge
 
-<svg width="0" height="0" xmlns="http://www.w3.org/2000/svg">
-<div style="display: flex; align-items: top;">
+<!-- <div style="display: flex; align-items: top;">
   <img src="icon.png" alt="[icon image]" title="Icon" width="220px" style="margin-right: 15px; margin-bottom: 15px; aspect-ratio: 1; height: auto;">
   <span>
     <p>
@@ -11,10 +10,16 @@
         Instead of linking several libraries dedicated to loading different types of files: meshes, animations, sprite sheets, and etc. Now you can just write a simple python script that loads in any complicated mesh/assimp file, optimize the mesh, do some precalculations for vertex normals and tangent vectors, then package it into a binary file that can be easily loaded in C/C++ by streaming the data into a struct or class that has a mirror structure to the binary file.
     </p>
   </span>
-</div>
-</svg>
+</div> -->
 
-<br>
+<!-- <br> -->
+
+![Icon](icon.png)
+
+**Asset Forge**: CMake for video game assets. With this utility, you will be able to preprocess your asset files, which are human and tool-readable/usable, into binary files that can be directly streamed into C/C++ structs and classes. This process will streamline loading complex assets in small video game projects written in C/C++ or other systems languages.
+
+Instead of linking several libraries dedicated to loading different types of files: meshes, animations, sprite sheets, etc., now you can just write a simple Python script that loads any complicated mesh/assimp file, optimizes the mesh, does some pre-calculations for vertex normals and tangent vectors, then packages it into a binary file that can be easily loaded in C/C++ by streaming the data into a struct or class that has a mirror structure to the binary file.
+
 
 First define a Amake.py file:
 ```python
