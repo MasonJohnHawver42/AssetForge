@@ -1,2 +1,4 @@
 dist
 *.egg-info/
+exp/build/
+__pycache__/

@@ -1,5 +1,5 @@
 {
-    "version" : "single image",
+    "type" : "single_image",
     "image" : "atari_8bit_font.png",
     "entries" : [
         {"id": "entry_0", "x": 0, "y": 0, "width": 9, "height": 9},

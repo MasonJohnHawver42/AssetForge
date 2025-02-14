@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "AssetForge"
-version = "0.0.1"
+version = "0.1.1"
 authors = [
   { name="Mason John Hawver", email="mason.hawver@gmail.com" },
 ]
 description = "Building Pipeline for video game assets"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -18,5 +18,5 @@ classifiers = [
 license = { file = "LICENSE" }
 
 [project.urls]
-Homepage = "https://github.com/pypa/sampleproject"
-Issues = "https://github.com/pypa/sampleproject/issues"
+Homepage = "https://github.com/MasonJohnHawver42/AssetForge"
+Issues = "https://github.com/MasonJohnHawver42/AssetForge/issues"

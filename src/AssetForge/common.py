@@ -1,4 +1,5 @@
 from .core import AssetTool
+from .util import in_folder
 
 from pathlib import Path
 from typing import List
@@ -14,8 +15,7 @@ class General(AssetTool):
         super().__init__() 
     
     def check_match(self, file_path: Path) -> bool:
-        # This tool accepts every file.
-        return True
+        return in_folder(file_path, self.input_folder)
 
     def define_dependencies(self, file_path: Path) -> List[Path]:
         # No additional dependencies for linking.
@@ -23,17 +23,17 @@ class General(AssetTool):
 
     def define_outputs(self, file_path: Path) -> List[Path]:
         # Return the same relative path so that the output file in the output folder will have the same structure.
-        return [file_path]
+        return [self.output_folder / self.relative_path(file_path)]
     
-    def build(self, file_path: Path, input_folder: Path, output_folder: Path) -> None:
+    def build(self, file_path: Path) -> None:
         """
         Creates a symbolic link in the output folder that points to the input file.
         
         Assumes that the current working directory is the input folder.
         """
         # Resolve the full path of the input file by joining the current working directory (input folder) with file_path.
-        input_file: Path = input_folder / file_path
-        output_file: Path = output_folder / file_path
+        input_file = file_path
+        output_file = self.output_folder / self.relative_path(file_path)
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
 

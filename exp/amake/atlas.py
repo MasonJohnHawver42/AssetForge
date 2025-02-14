@@ -63,7 +63,7 @@ class AtlasTool(AssetForge.AssetTool):
     
     def check_match(self, file_path: Path) -> bool:
         # Accept files with the .atals extension.
-        return file_path.suffix.lower() == ".atals"
+        return file_path.suffixes.count(".atlas") == 1 and file_path.is_relative_to(self.input_folder)
 
     def define_dependencies(self, file_path: Path) -> List[Path]:
         # The JSON atlas file references an image.
@@ -71,7 +71,7 @@ class AtlasTool(AssetForge.AssetTool):
             with file_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             if data["type"] == "single_image":
-                return [Path(file_path.parent / data["image"])]
+                return [file_path.parent / Path(data["image"])]
             else:
                 raise NotImplementedError("Haven't implemented that type of atlas yet")
         except Exception as e:
@@ -80,11 +80,11 @@ class AtlasTool(AssetForge.AssetTool):
         return []
 
     def define_outputs(self, file_path: Path) -> List[Path]:
-        return [Path(file_path.with_suffix(".atlas.bin"))]
+        return [self.output_folder / self.relative_path(file_path.with_suffix(".atlas.bin"))]
     
-    def build(self, file_path: Path, input_folder: Path, output_folder: Path) -> None:
+    def build(self, file_path: Path) -> None:
         # Read the atlas JSON data.
-        json_path = input_folder / file_path
+        json_path = file_path
 
         try:
             with json_path.open("r", encoding="utf-8") as f:
@@ -100,7 +100,7 @@ class AtlasTool(AssetForge.AssetTool):
             return
 
         # Resolve the image path relative to the atlas file.
-        image_path = input_folder / file_path.parent / image_filename
+        image_path = file_path.parent / Path(image_filename)
 
         # Open the image to determine its dimensions.
         try:
@@ -136,10 +136,10 @@ class AtlasTool(AssetForge.AssetTool):
 
         output_bytes = header + uv_data + text_blob
 
-        output_bin_file = output_folder / file_path.with_suffix(".atlas.bin") # <name>.atlas.bin
+        output_bin_file = self.output_folder / self.relative_path(file_path.with_suffix(".atlas.bin"))
 
         # Ensure the output folder exists.
-        output_folder.mkdir(parents=True, exist_ok=True)
+        output_bin_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Write the binary file.
         try:
