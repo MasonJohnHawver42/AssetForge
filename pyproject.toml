@@ -16,9 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 license = { file = "LICENSE" }
-
-[project.dependencies]
-graphviz = "^0.20.1"
+dependencies = ["graphviz>=0.20.1"]
 
 [project.urls]
 Homepage = "https://github.com/MasonJohnHawver42/AssetForge"
