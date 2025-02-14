@@ -14,7 +14,7 @@
 
 <!-- <br> -->
 
-![Icon](icon.png)
+![Icon](https://raw.githubusercontent.com/MasonJohnHawver42/AssetForge/refs/heads/master/icon.png)
 
 **Asset Forge**: CMake for video game assets. With this utility, you will be able to preprocess your asset files, which are human and tool-readable/usable, into binary files that can be directly streamed into C/C++ structs and classes. This process will streamline loading complex assets in small video game projects written in C/C++ or other systems languages.
 
