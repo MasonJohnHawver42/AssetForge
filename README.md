@@ -22,6 +22,9 @@ Instead of linking several libraries dedicated to loading different types of fil
 
 Preprocessing assets into binary files also has the benefit of compression. In the example a human editable plaintext `json` is **3689** bytes, preprocessing it into a `.bin` file compresses it to **1273** bytes, then compressing that with zlib results in a `.bin.z` that is **468** bytes; **An 88% compression!**
 
+**Author**: Mason Hawver\
+**Version**: v0.2.3
+
 [pypi package page](https://pypi.org/project/AssetForge/)
 
 ## Example Usage and Result:
