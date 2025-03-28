@@ -8,13 +8,20 @@ import sys
 
 import threading
 
-from .util import topological_sort, viz_dependency_graph, Graph, JobDict, ThreadPool
+from .util import invert_graph, topological_sort, viz_dependency_graph, hash_file, combine_hashes, Graph, JobDict, ThreadPool
 
 class AssetTool:
     def __init__(self):
         self.input_folder = Path().cwd()
         self.output_folder = Path().cwd()
         self.priority = 0
+    
+    def tool_name(self):
+        return "AssetTool"
+    
+    def start(self, input_folder: Path, output_folder: Path):
+        self.input_folder = input_folder
+        self.output_folder = output_folder
 
     def check_match(self, file_path: Path) -> bool:
         """
@@ -85,22 +92,22 @@ def RegisterTool(tool: AssetTool, priority: int = 0) -> None:
 
 def __call_check_match(tool, file_path):
     tmp = tool.check_match(file_path)
-    assert isinstance(tmp, bool), f"{tool.__class__.__name__}'s check_match didn't return a bool"
+    assert isinstance(tmp, bool), f"{tool.tool_name()}'s check_match didn't return a bool"
     return tmp
 
 def _call_define_outputs(tool, file_path):
     tmp = tool.define_outputs(file_path)
-    assert isinstance(tmp, list), f"{tool.__class__.__name__}'s define_outputs didn't return a list of Paths; it returned {type(tmp)}"
-    assert all(isinstance(item, Path) for item in tmp), f"{tool.__class__.__name__}'s define_outputs didn't return a list with just Paths"
+    assert isinstance(tmp, list), f"{tool.tool_name()}'s define_outputs didn't return a list of Paths; it returned {type(tmp)}"
+    assert all(isinstance(item, Path) for item in tmp), f"{tool.tool_name()}'s define_outputs didn't return a list with just Paths"
     return tmp
 
 def _call_define_dependencies(tool, file_path):
     tmp = tool.define_dependencies(file_path)
-    assert isinstance(tmp, list), f"{tool.__class__.__name__}'s define_dependencies didn't return a list of Paths"
-    assert all(isinstance(item, Path) for item in tmp), f"{tool.__class__.__name__}'s define_dependencies didn't return a list with just Paths"
+    assert isinstance(tmp, list), f"{tool.tool_name()}'s define_dependencies didn't return a list of Paths"
+    assert all(isinstance(item, Path) for item in tmp), f"{tool.tool_name()}'s define_dependencies didn't return a list with just Paths"
     return tmp
 
-def _call_build(forge, tool, file_path):
+def _call_build(forge, tool, file_path, quiet):
     old_stdout = sys.stdout
     old_stderr = sys.stderr
 
@@ -114,15 +121,17 @@ def _call_build(forge, tool, file_path):
 
     forge.done += 1
     progress_str = (str(int(100 * forge.done / forge.todo)) + "%").ljust(4)
-    print(f"[{progress_str}] {tool.__class__.__name__} \"{file_path}\"")
+    
+    if not quiet:
+        print(f"[{progress_str}] {tool.tool_name()} \"{file_path}\"")
 
-def _call_build_parallel(forge, tool, file_path):
+def _call_build_parallel(forge, tool, file_path, quiet):
     tool.build(file_path)
 
     with forge.lock:
         forge.done += 1
         progress_str = (str(int(100 * forge.done / forge.todo)) + "%").ljust(4)
-        forge.progress_buf.append(f"[{progress_str}] {tool.__class__.__name__} \"{file_path}\"")
+        forge.progress_buf.append(f"[{progress_str}] {tool.tool_name()} \"{file_path}\"")
 
 def _pick_tools(tools : List[AssetTool], file_path : Path) -> List[AssetTool]:
     return [tool for tool in tools if __call_check_match(tool, file_path)]
@@ -130,8 +139,13 @@ def _pick_tools(tools : List[AssetTool], file_path : Path) -> List[AssetTool]:
 def _run_job(job_func: Callable[..., Any], *args, **kwargs) -> None:
     return job_func(*args, **kwargs)
 
-def Build(input_folder: Path, output_folder: Path, recursive: bool = False, parallel: bool = False, debug: bool = False):
-    print("[0%  ] building ... ")
+def Build(input_folder: Path, output_folder: Path, recursive: bool = False, parallel: bool = False, debug: bool = False, quiet: bool = True):
+    if parallel:
+        print("Needs to be refactored for caching and logging")
+        parallel = False
+    
+    if not quiet:
+        print("[0%  ] building ... ")
 
     assert isinstance(input_folder, Path), "input_folder is not a Path"
     assert isinstance(output_folder, Path), "output_folder is not a Path"
@@ -139,8 +153,9 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
     forge = AssetForge()
 
     for tool in forge.get_tools():
-        tool.input_folder = input_folder
-        tool.output_folder = output_folder
+        # tool.input_folder = input_folder
+        # tool.output_folder = output_folder
+        tool.start(input_folder, output_folder)
 
     root_files = set()
     
@@ -203,11 +218,10 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
             deps = _call_define_dependencies(tool, file)
 
             staged_files |= outs
-
-            tool_id = f"{tool.__class__.__name__}_{uuid.uuid4().hex}"
+            tool_id = f"{tool.tool_name()}_{uuid.uuid4().hex}"
 
             graph[tool_id] = set([str(d) for d in deps]) | set([str(file)])
-            jobs[tool_id] = (_call_build_parallel if parallel else _call_build, forge, tool, file)
+            jobs[tool_id] = (_call_build_parallel if parallel else _call_build, forge, tool, file, quiet)
 
             for o in outs:
                 graph[str(o)] = set([tool_id])
@@ -219,7 +233,27 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
     order = bipartite_order[1::2]
 
     if debug:
-        viz_dependency_graph(graph, bipartite_order, input_folder / Path("output"))
+        bipartite_order_copy = bipartite_order.copy()
+        graph_copy = graph.copy()
+
+        whitelist = set()
+        
+        for tool in bipartite_order_copy[1]:
+            whitelist |= graph[tool]
+        
+        blacklist = set()
+        
+        for file in graph_copy.keys():
+            if file not in whitelist and file in bipartite_order_copy[0]:
+                blacklist.add(file)
+
+        for file in blacklist:
+            bipartite_order_copy[0].remove(file)
+            graph_copy.pop(file)
+
+        viz_dependency_graph(graph_copy, bipartite_order_copy, input_folder / Path("output"))
+
+    inv_graph = invert_graph(graph)
 
     forge.todo = sum([len(b) for b in order])
 
@@ -230,7 +264,6 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         
-
         thread_pool = ThreadPool(len(max(order, key=len)))
         for batch in order:
             sys.stdout = forge.log_buf
@@ -244,8 +277,9 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
             sys.stdout = old_stdout
             sys.stderr = old_stderr
             
-            for p in forge.progress_buf:
-                print(p)
+            if not quiet:
+                for p in forge.progress_buf:
+                    print(p)
             
             forge.progress_buf = []
         
@@ -254,10 +288,37 @@ def Build(input_folder: Path, output_folder: Path, recursive: bool = False, para
         sys.stdout = old_stdout
         sys.stderr = old_stderr
     else:
+
+        cached_jobs = {}
+
+        try:
+            with open(input_folder / Path("cache.log"), "r") as log_file:
+                for line in log_file:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+
+                    key, _, value = line.partition("=")
+                    cached_jobs[key.strip()] = value.strip()
+        except Exception as e:
+            pass
+
         for batch in order:
             for node in batch:
-                _run_job(*jobs[node])
-
+                ckey = f"{node[:-33]}|{','.join(graph[node])}|{','.join(inv_graph[node])}"
+                if ckey in cached_jobs and cached_jobs[ckey] == combine_hashes([hash_file(Path(f)) for f in graph[node]] + [hash_file(Path(f)) for f in inv_graph[node]]):
+                    if not quiet:
+                        forge.done += 1
+                        progress_str = (str(int(100 * forge.done / forge.todo)) + "%").ljust(4)
+    
+                        print(f"[{progress_str}] {node[:-33]} c\"{jobs[node][3]}\"")
+                else:    
+                    _run_job(*jobs[node])
+                    cached_jobs[ckey] = combine_hashes([hash_file(Path(f)) for f in graph[node]] + [hash_file(Path(f)) for f in inv_graph[node]])
+        
+        with open(input_folder / Path("cache.log"), "w") as log_file:
+            for job, hash in cached_jobs.items():
+                log_file.write(f"{job}={hash}\n")
 
     if debug:
         with open(input_folder / Path("output.log"), "w") as log_file:

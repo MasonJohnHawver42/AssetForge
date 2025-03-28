@@ -10,6 +10,9 @@ class SVGtoPNGTool(AssetForge.AssetTool):
     """
     todo
     """
+
+    def tool_name(self):
+        return "SVGtoPNGTool"
     
     def check_match(self, file_path: Path) -> bool:
         # Accept files with the .atals extension.

@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Set, Callable, Any, Optional
+from typing import List, Dict, Tuple, Set, Callable, Any, Optional, Iterable, Union
 from pathlib import Path
 
 from graphviz import Digraph
@@ -6,6 +6,24 @@ from graphviz import Digraph
 import threading
 import queue
 import re
+
+import hashlib
+
+def hash_file(file_path : Path) -> bytes:
+    hasher = hashlib.sha256()
+    with open(file_path, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):  # Read in chunks to handle large files
+            hasher.update(chunk)
+    return hasher.digest()
+
+def combine_hashes(items: Iterable[str], algorithm: str = "sha256") -> str:
+    """Combines hashes from multiple sources and returns the final hex digest."""
+    combined_hasher = hashlib.new(algorithm)
+
+    for item in sorted(items):
+        combined_hasher.update(item)
+
+    return combined_hasher.hexdigest()
 
 def full_suffix(file_path: Path) -> str:
     return "".join(file_path.suffixes)
@@ -27,6 +45,15 @@ def add_suffix(file_path: Path, extra_suffix: str) -> Path:
     return file_path.with_name(file_path.name + extra_suffix)
 
 Graph = Dict[str, Set[str]]
+
+def invert_graph(graph:Graph) -> Graph:
+    inverted = {node: set() for node in graph}  # Initialize empty adjacency list
+    
+    for node, neighbors in graph.items():
+        for neighbor in neighbors:
+            inverted[neighbor].add(node)  # Reverse the edge
+
+    return inverted
 
 JobDict = Dict[
     str,

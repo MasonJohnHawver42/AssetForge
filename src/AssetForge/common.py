@@ -9,6 +9,8 @@ import os
 import zlib
 import shutil
 
+import fnmatch
+
 class LinkingTool(AssetTool):
     """
     Simply takes every file in an input folder and makes an output file that just links the input file.
@@ -20,6 +22,9 @@ class LinkingTool(AssetTool):
     def __init__(self, pattern=r".*"):
         super().__init__() 
         self.pattern = pattern
+    
+    def tool_name(self):
+        return "LinkingTool"
     
     def check_match(self, file_path: Path) -> bool:
         return in_folder(file_path, self.input_folder) and bool(re.match(self.pattern, str(file_path), re.IGNORECASE))
@@ -58,6 +63,9 @@ class CopyingTool(AssetTool):
         super().__init__() 
         self.pattern = pattern
     
+    def tool_name(self):
+        return "CopyingTool"
+    
     def check_match(self, file_path: Path) -> bool:
         return in_folder(file_path, self.input_folder) and bool(re.match(self.pattern, str(file_path), re.IGNORECASE))
 
@@ -82,90 +90,10 @@ class CopyingTool(AssetTool):
 
 class CompressionTool(AssetTool):
     """
-
-    #include <iostream>
-    #include <stdexcept>
-    #include <sys/mman.h>
-    #include <sys/stat.h>
-    #include <fcntl.h>
-    #include <unistd.h>
-    #include <cstring>
-    #include <zlib.h>
-    #include <cstdlib>
-
-    /// Decompresses a memory‐mapped file whose first 4 bytes are an unsigned int
-    /// indicating the size of the compressed data. Returns a pointer to a buffer
-    /// containing the decompressed data (caller must free it with free()) and sets
-    /// decompressedSize to the number of decompressed bytes.
-    void* decompress_mapped_file(const char* filename, size_t &decompressedSize) {
-        // Open the file.
-        int fd = open(filename, O_RDONLY);
-        if (fd < 0) {
-            throw std::runtime_error("Could not open file");
-        }
-
-        // Get file size.
-        struct stat sb;
-        if (fstat(fd, &sb) < 0) {
-            close(fd);
-            throw std::runtime_error("fstat failed");
-        }
-        size_t fileSize = sb.st_size;
-        if (fileSize < sizeof(unsigned int)) {
-            close(fd);
-            throw std::runtime_error("File too small to contain header");
-        }
-
-        // Memory-map the file.
-        void* fileData = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
-        close(fd);
-        if (fileData == MAP_FAILED) {
-            throw std::runtime_error("mmap failed");
-        }
-        const unsigned char* mappedBytes = static_cast<const unsigned char*>(fileData);
-        const unsigned char* compData = mappedBytes
-
-        // Set up zlib stream for decompression.
-        z_stream strm;
-        std::memset(&strm, 0, sizeof(strm));
-        strm.next_in = const_cast<Bytef*>(compData);
-        strm.avail_in = fileSize;
-
-        if (inflateInit(&strm) != Z_OK) {
-            munmap(fileData, fileSize);
-            throw std::runtime_error("inflateInit failed");
-        }
-
-        // Allocate an output buffer.
-        // In practice, you might store the uncompressed size in the header.
-        size_t outputBufferSize = fileSize * 10; // Arbitrary guess; adjust as needed.
-        unsigned char* outBuffer = static_cast<unsigned char*>(std::malloc(outputBufferSize));
-        if (!outBuffer) {
-            inflateEnd(&strm);
-            munmap(fileData, fileSize);
-            throw std::bad_alloc();
-        }
-        strm.next_out = outBuffer;
-        strm.avail_out = outputBufferSize;
-
-        // Decompress.
-        int ret = inflate(&strm, Z_FINISH);
-        if (ret != Z_STREAM_END) {
-            std::free(outBuffer);
-            inflateEnd(&strm);
-            munmap(fileData, fileSize);
-            throw std::runtime_error("inflate failed or output buffer too small");
-        }
-        decompressedSize = outputBufferSize - strm.avail_out;
-        inflateEnd(&strm);
-
-        // Unmap the file.
-        munmap(fileData, fileSize);
-
-        return outBuffer;
-    }
-    
+    todo
     """
+    def tool_name(self):
+        return "CompressionTool"
     
     def check_match(self, file_path: Path) -> bool:
         return file_path.suffixes.count(".bin") == 1 and file_path.suffixes[-1] == ".bin"
@@ -192,3 +120,85 @@ class CompressionTool(AssetTool):
         # Write the compressed data to a file
         with open(output_path, "wb") as fout:
             fout.write(compressed_data)
+
+class IgnoreItToolDecorator(AssetTool):
+    def __init__(self, tool : AssetTool, ignore_it_name : str):
+        self.tool = tool
+        self.ignore_it_name = ignore_it_name
+    
+    def tool_name(self):
+        return self.tool.tool_name()
+    
+    def matches_ignore_pattern(self, file: Path, pattern: str, base: Path) -> bool:
+        """
+        Check if a file matches an ignore pattern.
+        This simplified version does the following:
+          - It computes the relative path of the file to the base directory (where the ignore file is located).
+          - If the pattern starts with '/', we treat it as relative to that base.
+          - Otherwise, the pattern is matched against the entire relative path or just the file name.
+        """
+        try:
+            rel_path = file.relative_to(base)
+        except ValueError:
+            # file is not under the base directory, so it doesn't match this ignore rule.
+            return False
+
+        # Normalize to posix path (using forward slashes) for consistent matching
+        rel_str = rel_path.as_posix()
+
+        if pattern.startswith('/'):
+            # Remove the leading slash and match only against the relative path from the base directory.
+            pattern = pattern[1:]
+            return fnmatch.fnmatch(rel_str, pattern)
+        else:
+            # For simplicity, check if the pattern matches the full relative path
+            # or the file name itself.
+            return fnmatch.fnmatch(rel_str, pattern) or fnmatch.fnmatch(file.name, pattern)
+    
+    def start(self, input_folder: Path, output_folder: Path):
+        super().start(input_folder, output_folder)
+
+        # go through all of the files in input folder and find all files with the file name .<self.name> ie if name="gitignore" look for files .gitignore
+        self.whitelist = set()
+
+        for file in input_folder.rglob("*"):
+            if file.is_file() and file.name != f".{self.ignore_it_name}":
+                self.whitelist.add(file)
+        
+        for dotfile in input_folder.rglob("*"):
+            if dotfile.is_file() and dotfile.name == f".{self.ignore_it_name}":
+                base_dir = dotfile.parent
+                with dotfile.open("r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        
+                        blacklist = set()
+
+                        for wfile in self.whitelist:
+                            if self.matches_ignore_pattern(wfile, line, base_dir):
+                                blacklist.add(wfile)
+                        
+                        for bfile in blacklist:
+                            self.whitelist.remove(bfile)
+
+        self.tool.start(input_folder, output_folder)
+
+    def check_match(self, file_path: Path) -> bool:
+        if (in_folder(file_path, self.input_folder)):
+            if file_path in self.whitelist:
+                return self.tool.check_match(file_path)
+            else:
+                return False
+        else:
+            return self.tool.check_match(file_path)
+
+    def define_dependencies(self, file_path: Path) -> List[Path]:
+        return self.tool.define_dependencies(file_path)
+
+    def define_outputs(self, file_path: Path) -> List[Path]:
+        return self.tool.define_outputs(file_path)
+    
+    def build(self, file_path: Path) -> None:
+        return self.tool.build(file_path)

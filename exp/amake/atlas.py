@@ -60,6 +60,9 @@ class AtlasTool(AssetForge.AssetTool):
     */
     ------------------------------------------------------
     """
+
+    def tool_name(self):
+        return "AtlasTool"
     
     def check_match(self, file_path: Path) -> bool:
         # Accept files with the .atals extension.

@@ -20,7 +20,9 @@
 
 Instead of linking several libraries dedicated to loading different types of files: meshes, animations, sprite sheets, etc., now you can just write a simple Python script that loads any complicated mesh/assimp file, optimizes the mesh, does some pre-calculations for vertex normals and tangent vectors, then packages it into a binary file that can be easily loaded in C/C++ by streaming the data into a struct or class that has a mirror structure to the binary file.
 
-Preprocessing assets into binary files also has the benefit of compression. In the example a human editable plaintext `json` is **3689** bytes, preprocessing it into a `.bin` file compresses it to **1273** bytes, then compressing that with zlib results in a `.bin.z` that is **468** bytes; **A 88% compression!**
+Preprocessing assets into binary files also has the benefit of compression. In the example a human editable plaintext `json` is **3689** bytes, preprocessing it into a `.bin` file compresses it to **1273** bytes, then compressing that with zlib results in a `.bin.z` that is **468** bytes; **An 88% compression!**
+
+[pypi package page](https://pypi.org/project/AssetForge/)
 
 ## Example Usage and Result:
 
